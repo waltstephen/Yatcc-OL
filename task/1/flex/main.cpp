@@ -52,11 +52,16 @@ void
 print_token()
 {
   outFile << lex::id2str(lex::g.mId) << " \'" << escape(lex::g.mText) << "\'";
-  if (lex::g.mStartOfLine)
-    outFile << "\t[StartOfLine]";
-  if (lex::g.mLeadingSpace)
-    outFile << "\t[LeadingSpace]";
-  outFile << "\tLoc=<0:0>\n";
+  if (lex::g.mStartOfLine || lex::g.mLeadingSpace) {
+    outFile << "\t";
+    if (lex::g.mStartOfLine)
+      outFile << " [StartOfLine]";
+    if (lex::g.mLeadingSpace)
+      outFile << " [LeadingSpace]";
+  } else {
+    outFile << "\t";
+  }
+  outFile << "\tLoc=<" << lex::g.mFile << ":" << lex::g.mLine << ":" << lex::g.mColumn << ">\n";
   outFile << std::flush;
 }
 
