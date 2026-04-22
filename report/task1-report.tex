@@ -1,0 +1,372 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{xeCJK}
+\usepackage{fontspec}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{caption}
+
+% 字体设置
+\setCJKmainfont{WenQuanYi Micro Hei}
+\setCJKsansfont{WenQuanYi Micro Hei}
+\setCJKmonofont{WenQuanYi Micro Hei Mono}
+\setmonofont{DejaVu Sans Mono}[Scale=0.85]
+
+% 页眉页脚
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{中山大学计算机学院}
+\fancyhead[R]{编译器构造实验}
+\fancyfoot[C]{\thepage}
+
+% 代码样式
+\lstdefinestyle{cstyle}{
+    language=C,
+    basicstyle=\small\ttfamily,
+    keywordstyle=\color{blue}\bfseries,
+    commentstyle=\color{gray}\itshape,
+    stringstyle=\color{red!70!black},
+    numberstyle=\tiny\color{gray},
+    numbers=left,
+    numbersep=6pt,
+    frame=single,
+    framerule=0.5pt,
+    rulecolor=\color{black!30},
+    backgroundcolor=\color{gray!5},
+    breaklines=true,
+    breakatwhitespace=true,
+    tabsize=4,
+    showstringspaces=false,
+    columns=flexible,
+    xleftmargin=2em,
+    framexleftmargin=1.5em,
+    aboveskip=1em,
+    belowskip=0.8em,
+}
+
+\lstdefinestyle{flexstyle}{
+    basicstyle=\small\ttfamily,
+    keywordstyle=\color{blue}\bfseries,
+    commentstyle=\color{gray}\itshape,
+    stringstyle=\color{red!70!black},
+    numberstyle=\tiny\color{gray},
+    numbers=left,
+    numbersep=6pt,
+    frame=single,
+    framerule=0.5pt,
+    rulecolor=\color{black!30},
+    backgroundcolor=\color{gray!5},
+    breaklines=true,
+    breakatwhitespace=true,
+    tabsize=4,
+    showstringspaces=false,
+    columns=flexible,
+    xleftmargin=2em,
+    framexleftmargin=1.5em,
+    aboveskip=1em,
+    belowskip=0.8em,
+    morekeywords={COME,ADDCOL,COME,YYEOF,return},
+}
+
+\lstdefinestyle{outputstyle}{
+    basicstyle=\small\ttfamily,
+    frame=single,
+    framerule=0.5pt,
+    rulecolor=\color{black!30},
+    backgroundcolor=\color{green!3},
+    breaklines=true,
+    tabsize=4,
+    showstringspaces=false,
+    columns=flexible,
+    xleftmargin=1em,
+    framexleftmargin=0.5em,
+    aboveskip=1em,
+    belowskip=0.8em,
+}
+
+\lstset{style=cstyle}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!60!black,
+    urlcolor=blue!70!black,
+}
+
+\titleformat{\section}{\large\bfseries}{}{0em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{}{0em}{}
+
+\begin{document}
+
+% ============================================================
+% 标题
+% ============================================================
+\begin{center}
+    {\LARGE\bfseries 中山大学计算机学院编译器构造实验报告}
+    \vspace{1em}
+
+    \begin{tabular}{|c|c|c|}
+        \hline
+        \textbf{姓名} & \textbf{学号} & \textbf{实验序号} \\
+        \hline
+        范益嘉 & 23336064 & 实验1：词法分析 \\
+        \hline
+    \end{tabular}
+\end{center}
+
+\vspace{1em}
+
+% ============================================================
+\section{一、实验过程}
+% ============================================================
+
+\subsection{1.1 实验目标概述}
+
+本次实验的目标是基于 Flex 工具实现一个 SysY 语言的词法分析器。词法分析器需要能够：
+\begin{itemize}[leftmargin=2em]
+    \item 识别 SysY 语言的所有关键字、标识符、常量、运算符和分隔符；
+    \item 正确解析 C 预处理器输出的行号/文件名指令（\texttt{\# linenum "filename" flags}）；
+    \item 追踪每个 token 在源文件中的精确位置（文件名:行号:列号）；
+    \item 正确标记 \texttt{[StartOfLine]} 和 \texttt{[LeadingSpace]} 属性；
+    \item 输出格式与 \texttt{clang -cc1 -dump-tokens} 保持一致。
+\end{itemize}
+
+\subsection{1.2 实验框架分析}
+
+实验提供了基于 Flex 的框架代码，包含以下核心文件：
+
+\begin{itemize}[leftmargin=2em]
+    \item \texttt{lex.l}：Flex 规则文件，定义词法规则，是主要的编码工作所在；
+    \item \texttt{lex.hpp}：头文件，定义 \texttt{enum Id}（token 类型枚举）和全局状态结构体 \texttt{G}；
+    \item \texttt{lex.cpp}：实现 \texttt{come()} 函数（处理识别到的 token）和 \texttt{id2str()} 函数（token 类型到字符串的映射）；
+    \item \texttt{main.cpp}：主程序，包含 \texttt{print\_token()} 输出函数和 \texttt{main()} 入口。
+\end{itemize}
+
+框架已经提供了部分 token 的识别规则（如 \texttt{int}、\texttt{return}、括号、\texttt{+}、\texttt{;}
+等），但缺少大量关键字、运算符，且未实现预处理指令解析和位置追踪。
+
+\subsection{1.3 需求分析——确定完整的 token 集合}
+
+通过分析测试用例和 \texttt{clang -cc1 -dump-tokens} 的标准答案输出，我确定了 SysY 语言需要支持的完整 token 集合：
+
+\begin{itemize}[leftmargin=2em]
+    \item \textbf{关键字（9个）}：\texttt{int}, \texttt{return}, \texttt{const}, \texttt{void}, \texttt{if}, \texttt{else}, \texttt{while}, \texttt{break}, \texttt{continue}
+    \item \textbf{标识符和字面量}：\texttt{identifier}, \texttt{numeric\_constant}（十进制、八进制、十六进制）, \texttt{string\_literal}
+    \item \textbf{分隔符（8个）}：\texttt{(}, \texttt{)}, \texttt{[}, \texttt{]}, \texttt{\{}, \texttt{\}}, \texttt{;}, \texttt{,}
+    \item \textbf{运算符（15个）}：\texttt{=}, \texttt{+}, \texttt{-}, \texttt{*}, \texttt{/}, \texttt{\%}, \texttt{<}, \texttt{>}, \texttt{<=}, \texttt{>=}, \texttt{==}, \texttt{!=}, \texttt{\&\&}, \texttt{||}, \texttt{!}
+\end{itemize}
+
+关键发现：通过运行以下命令提取标准答案中的全部 token 类型：
+\begin{lstlisting}[style=outputstyle]
+find build/test/task1 -name "answer.txt" \
+  -exec cat {} \; | awk '{print $1}' | sort -u
+\end{lstlisting}
+能快速确定需要支持的所有 token 名称，避免遗漏。
+
+\subsection{1.4 关键实现细节}
+
+\textbf{（1）Flex 词法规则的编写（lex.l）}
+
+核心的 \texttt{COME} 宏被重新设计以同时完成列号追踪和 token 报告：
+
+\begin{lstlisting}[style=flexstyle]
+#define COME(id) do { \
+  int _startCol = g.mColumn; \
+  g.mLine = yylineno; \
+  g.mColumn += yyleng; \
+  return come(id, yytext, yyleng, _startCol); \
+} while(0)
+\end{lstlisting}
+
+这个宏的关键在于：先保存当前列号作为 token 的起始列（\texttt{\_startCol}），再将列号更新到 token 结束之后的位置（\texttt{g.mColumn += yyleng}），最后调用 \texttt{come()} 时传入起始列号。
+
+多字符运算符必须在单字符运算符之前定义，利用 Flex 的最长匹配原则：
+
+\begin{lstlisting}[style=flexstyle]
+"<="        { COME(LESSEQUAL); }
+">="        { COME(GREATEREQUAL); }
+"=="        { COME(EQUALEQUAL); }
+"!="        { COME(EXCLAIMEQUAL); }
+"&&"        { COME(AMPAMP); }
+"||"        { COME(PIPEPIPE); }
+"<"         { COME(LESS); }      /* 单字符在后 */
+">"         { COME(GREATER); }
+\end{lstlisting}
+
+十六进制常量的匹配规则是框架中缺少的重要部分：
+\begin{lstlisting}[style=flexstyle]
+H     [a-fA-F0-9]
+0[xX]{H}+{IS}?        { COME(CONSTANT); }
+\end{lstlisting}
+
+\textbf{（2）预处理指令解析}
+
+预处理后的文件包含形如 \texttt{\# 1 "filename" 2} 的行号指令。解析逻辑如下：
+
+\begin{lstlisting}[style=flexstyle]
+^#[^\n]*  {
+  const char* p = yytext + 1;  /* 跳过 '#' */
+  while (*p == ' ') p++;
+  int line = 0;
+  while (*p >= '0' && *p <= '9') {
+    line = line * 10 + (*p - '0');
+    p++;
+  }
+  while (*p == ' ') p++;
+  if (*p == '"') {
+    p++;
+    const char* start = p;
+    while (*p && *p != '"') p++;
+    g.mFile = std::string(start, p - start);
+  }
+  yylineno = line - 1;  /* 减1因为后续\n会+1 */
+  g.mColumn = 1;
+  g.mStartOfLine = true;
+  return ~YYEOF;
+}
+\end{lstlisting}
+
+设置 \texttt{yylineno = line - 1} 是因为此规则不消费行末的 \texttt{\textbackslash n}，当 Flex 随后匹配 \texttt{\textbackslash n} 时会自动将 \texttt{yylineno} 加 1，使得下一行代码的行号恰好正确。
+
+\textbf{（3）空白字符与位置追踪}
+
+空白字符的处理对正确生成 \texttt{[StartOfLine]} 和 \texttt{[LeadingSpace]} 标记至关重要：
+
+\begin{lstlisting}[style=flexstyle]
+[ \t\v\f]  {           /* 水平空白 */
+  g.mColumn += yyleng;
+  g.mLeadingSpace = true;
+  return ~YYEOF;
+}
+\n  {                   /* 换行符 */
+  g.mColumn = 1;
+  g.mStartOfLine = true;
+  g.mLeadingSpace = false;
+  return ~YYEOF;
+}
+\end{lstlisting}
+
+\textbf{（4）EOF 位置的特殊处理}
+
+\texttt{clang} 将 EOF token 的位置报告为最后一个真实 token 之后的位置，而不是文件末尾换行符之后。为此我在 \texttt{struct G} 中增加了两个字段追踪最后一个 token 的结束位置：
+
+\begin{lstlisting}[style=cstyle]
+// lex.hpp 中的 struct G
+int mLastTokenEndCol{ 1 };   // 上一个 token 结束列
+int mLastTokenEndLine{ 1 };  // 上一个 token 结束行
+\end{lstlisting}
+
+在 \texttt{come()} 函数中对 EOF 做特殊处理：
+
+\begin{lstlisting}[style=cstyle]
+if (g.mId == Id::YYEOF) {
+    g.mColumn = g.mLastTokenEndCol;
+    g.mLine = g.mLastTokenEndLine;
+    g.mStartOfLine = false;
+    g.mLeadingSpace = false;
+    print_token();
+} else {
+    // ... 正常 token 处理 ...
+    g.mLastTokenEndCol = endCol;
+    g.mLastTokenEndLine = g.mLine;
+}
+\end{lstlisting}
+
+\textbf{（5）输出格式修正（main.cpp）}
+
+标准答案的输出格式需要精确匹配，包括制表符和空格的位置：
+
+\begin{lstlisting}[style=cstyle]
+// token_name 'value'\t [Flag1] [Flag2]\tLoc=<file:line:col>
+if (lex::g.mStartOfLine || lex::g.mLeadingSpace) {
+    outFile << "\t";
+    if (lex::g.mStartOfLine)
+      outFile << " [StartOfLine]";
+    if (lex::g.mLeadingSpace)
+      outFile << " [LeadingSpace]";
+} else {
+    outFile << "\t";
+}
+outFile << "\tLoc=<" << lex::g.mFile << ":"
+        << lex::g.mLine << ":" << lex::g.mColumn << ">";
+\end{lstlisting}
+
+当两个标志同时存在时输出 \texttt{\textbackslash t [StartOfLine] [LeadingSpace]\textbackslash tLoc=...}，无标志时输出两个连续制表符 \texttt{\textbackslash t\textbackslash tLoc=...}。
+
+\subsection{1.5 实验技巧总结}
+
+\begin{enumerate}[leftmargin=2em]
+    \item 善用 \texttt{clang -cc1 -dump-tokens} 作为标准参考，分析其输出的精确格式；
+    \item 使用 \texttt{cat -A} 查看文件中不可见字符（制表符 \texttt{\^{}I}、行末 \texttt{\$}），确保输出格式完全匹配；
+    \item 先实现基本功能通过简单测例，再逐步扩展到完整 token 集合；
+    \item Flex 的 \texttt{\%option yylineno} 自动追踪行号，但需要理解其与手动覆盖的交互方式。
+\end{enumerate}
+
+\subsection{1.6 实验结果}
+
+最终实验评测结果：\textbf{总分 100.00/100.00}，所有 68 个测例全部通过，包括 functional-0（11例）、functional-1（15例）、functional-2（6例）、functional-3（27例）和 mini-performance（9例）五个测试集。
+
+% ============================================================
+\section{二、AI使用}
+% ============================================================
+
+\subsection{2.1 模型与 token 用量}
+
+\begin{itemize}[leftmargin=2em]
+    \item \textbf{使用模型}：Claude Opus 4.6（1M context）
+    \item \textbf{Token 使用量}：约 100K+ tokens（包含代码阅读、生成、编译调试全流程）
+\end{itemize}
+
+\subsection{2.2 AI 使用心得}
+
+\textbf{（1）Prompt 方面}
+
+最有效的 prompt 策略是给出高层目标，让 AI 自主探索。本次实验中直接说明"帮我完成 task1 并提交评测"，AI 能够自动完成以下工作流：
+\begin{itemize}[leftmargin=2em]
+    \item 阅读项目 README 理解整体框架；
+    \item 分析 task1 目录下所有源文件理解现有代码结构；
+    \item 查看测试用例和评分脚本理解需求和评判标准；
+    \item 从标准答案反推需要支持的完整 token 集合；
+    \item 编写代码、编译、测试、修复，形成完整的开发闭环。
+\end{itemize}
+
+\textbf{（2）Coding 方面}
+
+AI 在以下几个方面表现出色：
+\begin{itemize}[leftmargin=2em]
+    \item \textbf{全局代码理解}：能够同时理解 4 个相互关联的文件（\texttt{lex.l}、\texttt{lex.hpp}、\texttt{lex.cpp}、\texttt{main.cpp}），确保枚举值、字符串数组和规则三者的一致性；
+    \item \textbf{快速调试迭代}：遇到列号偏移的 bug 时，AI 能够通过添加调试输出、分析宏展开逻辑、定位到 \texttt{ADDCOL()} 被重复调用的根因，并在数分钟内修复；
+    \item \textbf{边界情况处理}：自动识别并处理了 EOF 位置、预处理指令行号同步等容易遗漏的细节。
+\end{itemize}
+
+\textbf{（3）Chat 方面}
+
+在与 AI 的交互中，保持任务导向（"完成实验"而非"写某个函数"）能让 AI 发挥更大的自主性，减少人工干预。同时，AI 能够在遇到问题时自动查阅项目中的相关文件寻找答案，而非仅依赖已有知识。
+
+% ============================================================
+\section{三、实验建议}
+% ============================================================
+
+\subsection{3.1 实验内容建议}
+
+\begin{enumerate}[leftmargin=2em]
+    \item \textbf{明确 token 列表}：建议在 task1 的 README 中提供完整的 SysY 语言 token 类型列表。当前需要通过运行 \texttt{clang} 或分析测试用例来推断，增加了不必要的探索成本。
+    \item \textbf{预处理指令文档}：预处理指令的解析（提取文件名和行号）是隐含需求，建议在文档中明确说明其格式和解析要求。
+    \item \textbf{输出格式规范}：建议提供输出格式的精确说明（如制表符和空格的使用），而非仅通过示例展示。当前需要使用 \texttt{cat -A} 分析标准答案才能确定格式细节。
+    \item \textbf{评分脚本}：评分脚本设计合理，三级评分（token 类型 60\%、位置 30\%、无关字符标记 10\%）能够有效区分不同完成度。
+\end{enumerate}
+
+\subsection{3.2 AI 服务建议}
+
+\begin{enumerate}[leftmargin=2em]
+    \item AI 辅助完成编译实验整体效果良好，尤其在框架理解和快速迭代方面优势明显。
+    \item 建议提供一份"如何有效利用 AI 辅助完成编译实验"的指南文档，帮助学生了解合理的使用方式。
+    \item 在 Agent 模式下，AI 能够自主完成"读代码—写代码—编译—测试—修 bug"的完整循环，这种工作流特别适合编译实验这类有明确输入输出规范的任务。
+\end{enumerate}
+
+\end{document}
