@@ -739,10 +739,22 @@ Typing::infer_initlist(const std::vector<Expr*>& list,
     elemTy.qual = to->qual;
     elemTy.texp = arrTy->sub;
 
+    // 如果下一项本身是一个 InitListExpr（用户显式书写了嵌套 {...}），
+    // 那么它就对应当前子数组的整体初值；否则继续从扁平列表中按元素消费。
+    auto consume_one = [&](std::size_t b) -> std::pair<Expr*, std::size_t> {
+      if (b < list.size()) {
+        if (auto nested = list[b]->dcst<InitListExpr>()) {
+          auto [expr, _] = infer_initlist(nested->list, 0, &elemTy);
+          return { expr, b + 1 };
+        }
+      }
+      return infer_initlist(list, b, &elemTy);
+    };
+
     if (arrTy->len == ArrayType::kUnLen) {
       arrTy->len = 0;
       while (begin < list.size()) {
-        auto [expr, next] = infer_initlist(list, begin, &elemTy);
+        auto [expr, next] = consume_one(begin);
         ret->list.push_back(expr);
         begin = next;
         ++arrTy->len;
@@ -750,10 +762,10 @@ Typing::infer_initlist(const std::vector<Expr*>& list,
     }
 
     else {
-      for (int i = 0; i < arrTy->len; ++i) {
+      for (std::uint32_t i = 0; i < arrTy->len; ++i) {
         if (begin == list.size())
           break;
-        auto [expr, next] = infer_initlist(list, begin, &elemTy);
+        auto [expr, next] = consume_one(begin);
         ret->list.push_back(expr);
         begin = next;
       }
