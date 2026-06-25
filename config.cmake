@@ -46,6 +46,9 @@ else()
   set(_llvm_dir "${CMAKE_SOURCE_DIR}/llvm")
 endif()
 message("LLVM目录为 ${_llvm_dir}")
+set(YATCC_LLVM_DIR "${_llvm_dir}")
+set(YATCC_LLVM_SOURCE_DIR "${_llvm_dir}/llvm")
+set(YATCC_LLVM_BUILD_DIR "${_llvm_dir}/build")
 set(LLVM_DIR "${_llvm_dir}/install/lib/cmake/llvm")
 set(LLVM_INSTALL_DIR "${_llvm_dir}/install")
 set(CLANG_EXECUTABLE "${_llvm_dir}/install/bin/clang")
@@ -86,8 +89,6 @@ set(TASK4_LLM_REGEX "^llm-performance/.*")
 set(TASK4_CASES_TXT "")
 
 # 实验五排除测例名的正则式
-set(TASK5_EXCLUDE_REGEX "^performance/.*|^mini-performance/.*|^llm-performance/.*")
-# 实验五 LLM 定向优化测例名正则式
-set(TASK5_LLM_REGEX "^llm-backend/.*")
+set(TASK5_EXCLUDE_REGEX "^performance/.*|^mini-performance/.*|^llm-performance/.*|^llm-backend/.*")
 # 实验五测例表，非空时忽略 EXCLUDE_REGEX
 set(TASK5_CASES_TXT "")
